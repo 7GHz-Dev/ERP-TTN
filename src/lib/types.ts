@@ -68,6 +68,18 @@ export interface Job {
   note: string | null;
   cancelled: boolean;
   updated_at?: string;
+  /** ข้อมูลประกอบจาก ERP KOLA (สั่งลากจากหน้า Transport Request) — งานที่นำเข้าเองเป็น null ทั้งหมด */
+  source?: string | null;
+  source_job_no?: string | null;
+  shipper?: string | null;
+  shipline?: string | null;
+  vessel?: string | null;
+  eta?: string | null;
+  eta_official?: boolean | null;
+  do_status?: string | null;
+  dem_free_until?: string | null;
+  det_days?: number | null;
+  bl_containers?: number | null;
 }
 
 export type JobPatch = Partial<Omit<Job, "id">>;

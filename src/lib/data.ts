@@ -22,6 +22,11 @@ const JOB_COLUMNS =
   "driver_id,driver_name,truck_no,phone,payee_type,account_name,bank,account_no,pickup_date,end_date,return_due_date,return_date," +
   "price,price_manual,overweight_fee,overnight_fee,other_fee,wh_tax,note,cancelled,updated_at";
 
+/** คอลัมน์ข้อมูลประกอบจาก ERP KOLA — มีหลังรัน migration 20261118000200_kola_inbound.sql */
+const KOLA_COLUMNS =
+  ",source,source_job_no,shipper,shipline,vessel,eta,eta_official,do_status,dem_free_until,det_days,bl_containers";
+let kolaColumns = true;
+
 const NUMERIC_JOB_FIELDS = [
   "weight_doc_kg",
   "weight_actual_kg",
@@ -44,6 +49,34 @@ function check<T>(res: { data: T | null; error: { message: string } | null }, wh
   return (res.data ?? ([] as unknown)) as T;
 }
 
+function jobsQuery(sb: ReturnType<typeof supabaseBrowser>, columns: string, from: string, to: string, dueFrom: string) {
+  return sb
+    .from("jobs")
+    .select(columns)
+    .or(
+      `and(plan_date.gte.${from},plan_date.lte.${to}),` +
+        `and(pickup_date.not.is.null,end_date.is.null,cancelled.is.false),` +
+        `and(return_due_date.not.is.null,return_date.is.null,cancelled.is.false,plan_date.gte.${dueFrom})`,
+    )
+    .order("plan_date")
+    .order("bl_no", { nullsFirst: false })
+    .order("container_no")
+    .limit(5000);
+}
+
+/**
+ * โหลดตู้พร้อมข้อมูลประกอบจาก KOLA — ถ้าฐานข้อมูลยังไม่ได้รัน migration ของ KOLA (คอลัมน์ไม่มี)
+ * ถอยไปโหลดแบบเดิม หน้าจัดรถจึงใช้ได้ตลอด
+ */
+async function loadJobs(sb: ReturnType<typeof supabaseBrowser>, from: string, to: string, dueFrom: string) {
+  if (kolaColumns) {
+    const res = await jobsQuery(sb, JOB_COLUMNS + KOLA_COLUMNS, from, to, dueFrom);
+    if (!res.error || res.error.code !== "42703") return res;
+    kolaColumns = false;
+  }
+  return jobsQuery(sb, JOB_COLUMNS, from, to, dueFrom);
+}
+
 export async function loadBoard(date: string): Promise<BoardData> {
   if (DEMO) return demo.loadBoard();
   const sb = supabaseBrowser();
@@ -52,18 +85,7 @@ export async function loadBoard(date: string): Promise<BoardData> {
 
   const [drivers, jobs, leaves, rates, lookups, stats] = await Promise.all([
     sb.from("drivers").select("*").order("id"),
-    sb
-      .from("jobs")
-      .select(JOB_COLUMNS)
-      .or(
-        `and(plan_date.gte.${from},plan_date.lte.${to}),` +
-          `and(pickup_date.not.is.null,end_date.is.null,cancelled.is.false),` +
-          `and(return_due_date.not.is.null,return_date.is.null,cancelled.is.false,plan_date.gte.${addDays(date, -120)})`,
-      )
-      .order("plan_date")
-      .order("bl_no", { nullsFirst: false })
-      .order("container_no")
-      .limit(5000),
+    loadJobs(sb, from, to, addDays(date, -120)),
     sb.from("driver_unavailability").select("id,driver_id,start_date,end_date,note").or(`end_date.gte.${from},end_date.is.null`),
     sb.from("rates").select("id,destination,truck_type,max_tons,price"),
     sb.from("lookups").select("kind,value,sort").order("sort"),

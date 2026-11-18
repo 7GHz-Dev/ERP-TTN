@@ -19,6 +19,7 @@ import type { Driver, Job, JobPatch, Rate } from "@/lib/types";
 import { jobStatus, jobWeightKg, nextStep, returnAlert, type JobStatus, type StepField } from "@/lib/logic/status";
 import { suggestPrice, formatBaht } from "@/lib/logic/pricing";
 import { formatThaiDate } from "@/lib/logic/dates";
+import { kolaSummary } from "@/lib/logic/kola";
 import { StatusPill, TruckBadge, formatTons } from "./ui";
 import { button, input } from "@/components/ui/styles";
 
@@ -128,7 +129,7 @@ export function JobList(p: Props) {
               type="search"
               value={p.query}
               onChange={(e) => p.setQuery(e.target.value)}
-              placeholder="ค้นหาเลขตู้ BL คนขับ"
+              placeholder="ค้นหาเลขตู้ BL คนขับ Shipper"
               aria-label="ค้นหาตู้"
               className={clsx(input, "h-9 py-1.5 pl-9")}
             />
@@ -265,31 +266,68 @@ export function JobList(p: Props) {
 function groupMeta(rows: Job[]) {
   const live = rows.filter((j) => !j.cancelled);
   const missing = live.filter((j) => jobStatus(j) === "unassigned").length;
-  const customer = [...new Set(live.map((j) => j.customer).filter(Boolean))].join(", ");
-  return { live, missing, customer };
+  const kola = kolaSummary(rows);
+  // ตู้จาก KOLA แสดง Shipper ของ BL แทน Customer (ทีมจัดรถถามหา Shipper)
+  const customer = kola?.shipper || [...new Set(live.map((j) => j.customer).filter(Boolean))].join(", ");
+  return { live, missing, customer, kola };
+}
+
+const FLAG_CLASS = {
+  bad: "bg-rose-100 text-rose-800",
+  warn: "bg-amber-100 text-amber-800",
+  info: "bg-slate-200 text-slate-700",
+} as const;
+
+/** ข้อมูลประกอบจาก ERP KOLA ต่อ BL: สายเรือ · D/O · DEM/DET · ETA + ป้ายเตือน */
+function KolaLine({ kola }: { kola: NonNullable<ReturnType<typeof kolaSummary>> }) {
+  const bits = [
+    kola.shipline && `สายเรือ ${kola.shipline}`,
+    kola.doStatus && !kola.flags.some((f) => f.text.startsWith("D/O")) && `D/O ${kola.doStatus}`,
+    kola.demUntil && `DEM ฟรีถึง ${formatThaiDate(kola.demUntil)}`,
+    kola.detDays != null && kola.detDays > 0 && `DET ${kola.detDays} วัน`,
+    kola.eta && `ETA ${formatThaiDate(kola.eta)}${kola.etaOfficial ? " (กรมยืนยัน)" : kola.etaOfficial === false ? " (ประมาณ)" : ""}`,
+    kola.vessel && `เรือ ${kola.vessel}`,
+  ].filter(Boolean);
+  return (
+    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="rounded bg-blue-100 px-1.5 py-px text-[11px] font-semibold text-blue-800" title={kola.jobNo ? `งาน KOLA ${kola.jobNo}` : "สั่งลากจาก ERP KOLA"}>
+        KOLA{kola.jobNo ? ` ${kola.jobNo}` : ""}
+      </span>
+      {bits.map((b) => (
+        <span key={b as string}>{b}</span>
+      ))}
+      {kola.flags.map((f) => (
+        <span key={f.text} className={clsx("rounded px-1.5 py-px text-[11px] font-medium", FLAG_CLASS[f.level])}>
+          {f.text}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function GroupHeader({ bl, rows, colSpan }: { bl: string; rows: Job[]; colSpan: number }) {
-  const { live, missing, customer } = groupMeta(rows);
+  const { live, missing, customer, kola } = groupMeta(rows);
   return (
     <tr className="bg-slate-50/80">
       <td colSpan={colSpan} className="border-y border-slate-200 px-3 py-1.5 text-xs text-slate-600">
         <span className="font-semibold text-slate-900">{bl ? `BL ${bl}` : "ไม่ระบุ BL"}</span>
         {customer && <span> · {customer}</span>}
-        <span> · {live.length} ตู้</span>
+        <span> · {live.length}{kola?.blContainers && kola.blContainers !== live.length ? `/${kola.blContainers}` : ""} ตู้</span>
         {missing > 0 && <span className="ml-2 font-medium text-amber-700">ยังไม่จัดรถ {missing}</span>}
+        {kola && <KolaLine kola={kola} />}
       </td>
     </tr>
   );
 }
 
 function MobileGroupHeader({ bl, rows }: { bl: string; rows: Job[] }) {
-  const { live, missing, customer } = groupMeta(rows);
+  const { live, missing, customer, kola } = groupMeta(rows);
   return (
     <div className="border-y border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
       <span className="font-semibold text-slate-900">{bl ? `BL ${bl}` : "ไม่ระบุ BL"}</span>
       {customer && <span> · {customer}</span>} · {live.length} ตู้
       {missing > 0 && <span className="ml-2 font-medium text-amber-700">ขาด {missing}</span>}
+      {kola && <KolaLine kola={kola} />}
     </div>
   );
 }

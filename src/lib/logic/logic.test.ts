@@ -8,6 +8,7 @@ import { driverDayStatus } from "./availability";
 import { autoAssign, rankDrivers } from "./assign";
 import { computeMoney, suggestPrice } from "./pricing";
 import { buildMessage } from "./messages";
+import { kolaFlags, kolaSummary } from "./kola";
 
 // ---------------------------------------------------------------------------
 // fixtures
@@ -422,5 +423,37 @@ describe("returned containers count as finished", () => {
   it("does not keep the driver running after the container was returned", () => {
     const j = job({ driver_id: "D1", plan_date: "2026-11-10", pickup_date: "2026-11-10", return_date: "2026-11-13" });
     expect(driverDayStatus(driver({ id: "D1" }), D, [j], []).state).toBe("free");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ข้อมูลประกอบจาก ERP KOLA
+// ---------------------------------------------------------------------------
+describe("kolaFlags", () => {
+  const kola = (p: Partial<Job> = {}) => job({ source: "KOLA", do_status: "ได้ D/O แล้ว", ...p });
+
+  it("งานที่นำเข้าเองไม่มีป้าย", () => {
+    expect(kolaFlags(job({ det_days: 1 }))).toEqual([]);
+  });
+
+  it("D/O ยังไม่ได้ · เกิน DEM · DET สั้น", () => {
+    const texts = kolaFlags(kola({ do_status: "ยังไม่แลก", dem_free_until: "2026-11-16", det_days: 3 })).map((f) => f.text);
+    expect(texts).toContain("D/O ยังไม่แลก");
+    expect(texts.some((t) => t.startsWith("เกิน DEM 2 วัน"))).toBe(true);
+    expect(texts).toContain("DET 3 วัน รีบคืนตู้");
+  });
+
+  it("ลากวันศุกร์ + DET สั้น และคืนตู้ตรงวันหยุด", () => {
+    // 2026-11-20 = ศุกร์ · คืนภายใน 2 วัน = อาทิตย์ 22
+    const texts = kolaFlags(kola({ plan_date: "2026-11-20", det_days: 2, return_due_date: "2026-11-22" })).map((f) => f.text);
+    expect(texts).toContain("ลากวันศุกร์ + DET สั้น");
+    expect(texts).toContain("คืนตู้ตรงอาทิตย์");
+  });
+
+  it("ETA ยังไม่ยืนยัน · สรุป BL ไม่ซ้ำป้าย", () => {
+    const rows = [kola({ eta_official: false, shipper: "JAN TRADING" }), kola({ eta_official: false })];
+    const sum = kolaSummary(rows);
+    expect(sum?.shipper).toBe("JAN TRADING");
+    expect(sum?.flags.filter((f) => f.text.startsWith("ETA"))).toHaveLength(1);
   });
 });

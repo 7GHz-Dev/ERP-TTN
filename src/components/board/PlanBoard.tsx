@@ -142,7 +142,7 @@ function Board({ initialDate, userEmail }: { initialDate: string; userEmail: str
       const s = jobStatus(j);
       if (filter === "all" ? false : s !== filter) return false;
       if (!q) return true;
-      return [j.container_no, j.bl_no, j.driver_name, j.truck_no, j.customer, j.port].some((f) => norm(f).includes(q));
+      return [j.container_no, j.bl_no, j.driver_name, j.truck_no, j.customer, j.port, j.shipper, j.shipline].some((f) => norm(f).includes(q));
     });
   }, [dayJobs, filter, query]);
 
