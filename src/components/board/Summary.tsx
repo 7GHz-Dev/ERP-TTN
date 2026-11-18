@@ -5,7 +5,7 @@ import clsx from "clsx";
 import type { Driver, Job } from "@/lib/types";
 import { jobStatus, returnAlert } from "@/lib/logic/status";
 import { computeMoney, formatBaht } from "@/lib/logic/pricing";
-import { formatThaiDate } from "@/lib/logic/dates";
+import { diffDays, formatThaiDate } from "@/lib/logic/dates";
 
 export function Summary({ dayJobs, driversById }: { dayJobs: Job[]; driversById: Map<string, Driver> }) {
   const live = dayJobs.filter((j) => !j.cancelled);
@@ -61,37 +61,54 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
   );
 }
 
+/** รับตู้แล้วเกินกี่วันยังไม่จบงาน ถือว่า "วิ่งค้าง" ต้องตามงาน */
+export const STALE_RUNNING_DAYS = 3;
+
+type FollowUp = { j: Job; kind: "overdue" | "stale" | "due-soon"; days: number; note: string };
+
+/** แถบ "ต้องติดตาม": คืนตู้เกินกำหนด, รับตู้แล้ววิ่งค้างนาน, ครบกำหนดคืนภายในพรุ่งนี้ */
 export function ReturnAlerts({ jobs, today, onJump }: { jobs: Job[]; today: string; onJump: (j: Job) => void }) {
-  const items = jobs
-    .map((j) => ({ j, a: returnAlert(j, today) }))
-    .filter((x): x is { j: Job; a: NonNullable<ReturnType<typeof returnAlert>> } => !!x.a && x.a.level !== "returned-late")
-    .sort((x, y) => (x.j.return_due_date ?? "").localeCompare(y.j.return_due_date ?? ""));
+  const items: FollowUp[] = [];
+  for (const j of jobs) {
+    const a = returnAlert(j, today);
+    if (a?.level === "overdue") items.push({ j, kind: "overdue", days: a.days, note: `คืนตู้เกิน ${a.days} วัน (${formatThaiDate(j.return_due_date)})` });
+    else if (a?.level === "due-soon") items.push({ j, kind: "due-soon", days: a.days, note: `${a.days === 0 ? "ครบคืนวันนี้" : "ครบคืนพรุ่งนี้"} (${formatThaiDate(j.return_due_date)})` });
+    if (jobStatus(j) === "running" && j.pickup_date) {
+      const d = diffDays(today, j.pickup_date);
+      if (d >= STALE_RUNNING_DAYS) items.push({ j, kind: "stale", days: d, note: `รับตู้ ${formatThaiDate(j.pickup_date)} ยังไม่จบงาน (${d} วัน)` });
+    }
+  }
   if (!items.length) return null;
-  const overdue = items.filter((x) => x.a.level === "overdue").length;
-  const soon = items.length - overdue;
+  const order = { overdue: 0, stale: 1, "due-soon": 2 };
+  items.sort((x, y) => order[x.kind] - order[y.kind] || y.days - x.days);
+  const count = (k: FollowUp["kind"]) => items.filter((x) => x.kind === k).length;
+  const urgent = count("overdue") + count("stale");
 
   return (
     <details className="group rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm [&::-webkit-details-marker]:hidden">
-        <AlertTriangle className={clsx("size-5 shrink-0", overdue ? "text-rose-600" : "text-amber-600")} aria-hidden />
-        <span className="flex-1">
-          <span className="font-medium">ตู้ที่ต้องคืน</span>
-          {overdue > 0 && <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-medium text-rose-800">เกินกำหนด {overdue}</span>}
-          {soon > 0 && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">ครบกำหนดภายในพรุ่งนี้ {soon}</span>}
+        <AlertTriangle className={clsx("size-5 shrink-0", urgent ? "text-rose-600" : "text-amber-600")} aria-hidden />
+        <span className="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium">ต้องติดตาม</span>
+          {count("overdue") > 0 && <span className="rounded bg-rose-100 px-1.5 py-0.5 text-xs font-medium text-rose-800">คืนตู้เกินกำหนด {count("overdue")}</span>}
+          {count("stale") > 0 && (
+            <span className="rounded bg-rose-100 px-1.5 py-0.5 text-xs font-medium text-rose-800">
+              วิ่งค้างเกิน {STALE_RUNNING_DAYS} วัน {count("stale")}
+            </span>
+          )}
+          {count("due-soon") > 0 && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">ครบคืนภายในพรุ่งนี้ {count("due-soon")}</span>}
         </span>
         <ChevronDown className="size-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
       <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto border-t border-slate-200">
-        {items.map(({ j, a }) => (
-          <li key={j.id}>
-            <button type="button" onClick={() => onJump(j)} className="flex w-full cursor-pointer items-center gap-3 px-4 py-2 text-left text-sm hover:bg-slate-50">
+        {items.map(({ j, kind, note }) => (
+          <li key={`${kind}-${j.id}`}>
+            <button type="button" onClick={() => onJump(j)} className="flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-2 text-left text-sm hover:bg-slate-50">
               <span className="w-32 shrink-0 font-mono text-[13px] font-semibold">{j.container_no}</span>
               <span className="min-w-0 flex-1 truncate text-slate-600">
                 {j.driver_name || "ยังไม่มีคนขับ"} · แพลน {formatThaiDate(j.plan_date)}
               </span>
-              <span className={clsx("shrink-0 text-xs font-medium", a.level === "overdue" ? "text-rose-700" : "text-amber-700")}>
-                {a.level === "overdue" ? `เกิน ${a.days} วัน` : a.days === 0 ? "ครบวันนี้" : "ครบพรุ่งนี้"} ({formatThaiDate(j.return_due_date)})
-              </span>
+              <span className={clsx("shrink-0 text-xs font-medium", kind === "due-soon" ? "text-amber-700" : "text-rose-700")}>{note}</span>
             </button>
           </li>
         ))}

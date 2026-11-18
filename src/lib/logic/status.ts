@@ -11,9 +11,12 @@ export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
   cancelled: "ยกเลิก",
 };
 
-export function jobStatus(j: Pick<Job, "cancelled" | "driver_id" | "driver_name" | "pickup_date" | "end_date">): JobStatus {
+export function jobStatus(
+  j: Pick<Job, "cancelled" | "driver_id" | "driver_name" | "pickup_date" | "end_date"> & Partial<Pick<Job, "return_date">>,
+): JobStatus {
   if (j.cancelled) return "cancelled";
-  if (j.end_date) return "done";
+  // คืนตู้แล้วแปลว่าลากเสร็จแล้ว แม้ไม่ได้กรอกวันจบงาน
+  if (j.end_date || j.return_date) return "done";
   if (j.pickup_date) return "running";
   if (j.driver_id || j.driver_name) return "assigned";
   return "unassigned";

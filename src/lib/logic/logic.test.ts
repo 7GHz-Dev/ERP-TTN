@@ -412,3 +412,15 @@ describe("assignmentPatch", () => {
     expect(payeeTypeOf("สมชาย ใจดี")).toBe("บุคคล");
   });
 });
+
+// ---------------------------------------------------------------------------
+describe("returned containers count as finished", () => {
+  it("treats a job with a return date but no end date as done", () => {
+    expect(jobStatus(job({ driver_id: "D1", pickup_date: "2026-11-10", return_date: "2026-11-13" }))).toBe("done");
+  });
+
+  it("does not keep the driver running after the container was returned", () => {
+    const j = job({ driver_id: "D1", plan_date: "2026-11-10", pickup_date: "2026-11-10", return_date: "2026-11-13" });
+    expect(driverDayStatus(driver({ id: "D1" }), D, [j], []).state).toBe("free");
+  });
+});

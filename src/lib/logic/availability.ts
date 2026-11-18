@@ -39,7 +39,7 @@ export function driverDayStatus(
 ): DriverDayStatus {
   const leave = leaves.find((l) => l.driver_id === driver.id && leaveCovers(l, date)) ?? null;
   const mine = jobs.filter((j) => j.driver_id === driver.id && !j.cancelled && j.id !== excludeJobId);
-  const running = mine.filter((j) => j.pickup_date && !j.end_date && j.pickup_date <= date);
+  const running = mine.filter((j) => j.pickup_date && !j.end_date && !j.return_date && j.pickup_date <= date);
   const sameDay = mine.filter((j) => j.plan_date === date && !running.includes(j));
 
   if (!driver.active || leave) return { state: "off", jobs: [...running, ...sameDay], leave };
