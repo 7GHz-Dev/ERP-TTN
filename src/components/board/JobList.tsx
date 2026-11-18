@@ -122,7 +122,7 @@ export function JobList(p: Props) {
           ))}
         </div>
         <div className="flex flex-1 flex-wrap items-center gap-2 lg:justify-end">
-          <div className="relative min-w-0 flex-1 basis-full sm:basis-auto lg:max-w-64">
+          <div className="relative min-w-0 flex-1 basis-full sm:basis-auto lg:max-w-52">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
             <input
               type="search"
