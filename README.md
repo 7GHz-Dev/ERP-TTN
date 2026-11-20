@@ -56,6 +56,15 @@ npm run import-worklog -- --file "file/จัดการคนรถ 2026.xlsx"
 จับคู่ตู้เดิมด้วยเลขตู้ + วันรับตู้ / BL แล้วอัปเดตแทนการเพิ่มซ้ำ, คนขับที่ไม่มีในระบบถูกสร้างแบบปิดใช้งาน
 โฟลเดอร์ `file/` ไม่ถูกเก็บใน git
 
+อัปเดตรายชื่อคนรถจาก `file/driver master.xlsx` (ชื่อ ทะเบียน โทร บัญชี):
+
+```bash
+npm run import-drivers -- --file "file/driver master.xlsx" --dry-run
+npm run import-drivers -- --file "file/driver master.xlsx"
+```
+
+คนในไฟล์ถูกอัปเดต + เปิดใช้งาน, ถ้าไฟล์มีรถบริษัท ถือเป็นรายชื่อรถบริษัทครบชุด — รถบริษัทที่ไม่อยู่ในไฟล์ถูกปิดใช้งาน
+
 ### 4. Vercel
 
 ตั้ง Environment Variables 2 ตัว: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
