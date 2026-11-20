@@ -46,6 +46,16 @@ npm run import-sheet                # นำเข้า (รันซ้ำไ�
 อ่านจากชีต `DriverMaster`, `Queue` (ประเภทที่รับงาน), `WorkLog`, `งานนอก` และตั้งอัตราค่าขนส่งเริ่มต้นจาก "ราคาที่จ่ายบ่อยที่สุด" ต่อปลายทาง + ประเภทรถ
 ข้อมูลคนขับ/บัญชีธนาคาร **ไม่ถูกเก็บใน git** — สคริปต์อ่านจาก Sheet ตอนรันเท่านั้น
 
+ไฟล์ Excel ชีตเดียวแบบ WorkLog (ไม่มี DriverMaster) เช่น `file/จัดการคนรถ 2026.xlsx` ใช้อีกสคริปต์:
+
+```bash
+npm run import-worklog -- --file "file/จัดการคนรถ 2026.xlsx" --dry-run   # ดูว่าจะเพิ่ม/อัปเดตอะไร
+npm run import-worklog -- --file "file/จัดการคนรถ 2026.xlsx"             # เขียนจริง (รันซ้ำได้)
+```
+
+จับคู่ตู้เดิมด้วยเลขตู้ + วันรับตู้ / BL แล้วอัปเดตแทนการเพิ่มซ้ำ, คนขับที่ไม่มีในระบบถูกสร้างแบบปิดใช้งาน
+โฟลเดอร์ `file/` ไม่ถูกเก็บใน git
+
 ### 4. Vercel
 
 ตั้ง Environment Variables 2 ตัว: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`

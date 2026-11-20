@@ -12,70 +12,12 @@
 import ExcelJS from "exceljs";
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
-
-type Cell = string | number | boolean | Date | null;
-type Rec = Record<string, Cell>;
+import { bool, clean, date, num, readSheet, str, type Cell } from "./sheet-utils";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const OVERWRITE = args.includes("--overwrite");
 const fileArg = args.includes("--file") ? args[args.indexOf("--file") + 1] : null;
-
-const clean = (s: unknown) =>
-  s === null || s === undefined ? "" : String(s).replace(/ /g, " ").replace(/\s+/g, " ").trim();
-const str = (v: Cell) => {
-  if (v === null || v === undefined) return null;
-  if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(v);
-  const s = clean(v);
-  return s === "" || s === "-" ? null : s;
-};
-const num = (v: Cell) => {
-  if (v === null || v === undefined || v === "") return null;
-  const n = typeof v === "number" ? v : Number(String(v).replace(/,/g, "").trim());
-  return Number.isFinite(n) ? n : null;
-};
-const date = (v: Cell) => {
-  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
-  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-  return null;
-};
-const bool = (v: Cell) => v === true || v === "TRUE";
-
-function cellValue(c: ExcelJS.Cell): Cell {
-  const v = c.value as unknown;
-  if (v === null || v === undefined) return null;
-  if (v instanceof Date) return v;
-  if (typeof v === "object") {
-    const o = v as Record<string, unknown>;
-    if ("error" in o) return null;
-    if ("result" in o) return (o.result as Cell) ?? null;
-    if ("richText" in o) return (o.richText as { text: string }[]).map((t) => t.text).join("");
-    if ("text" in o) return String(o.text);
-    return null;
-  }
-  return v as Cell;
-}
-
-function readSheet(wb: ExcelJS.Workbook, name: string, headerRow: number): Rec[] {
-  const ws = wb.getWorksheet(name);
-  if (!ws) throw new Error(`ไม่พบชีต "${name}"`);
-  const headers: string[] = [];
-  ws.getRow(headerRow).eachCell({ includeEmpty: true }, (c, col) => (headers[col] = clean(cellValue(c))));
-  const out: Rec[] = [];
-  for (let r = headerRow + 1; r <= ws.rowCount; r++) {
-    const row = ws.getRow(r);
-    const rec: Rec = {};
-    let any = false;
-    headers.forEach((h, col) => {
-      if (!h) return;
-      const v = cellValue(row.getCell(col));
-      rec[h] = v;
-      if (v !== null && v !== "") any = true;
-    });
-    if (any) out.push(rec);
-  }
-  return out;
-}
 
 async function loadWorkbook(): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook();

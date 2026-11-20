@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ไฟล์ Excel ต้นทาง (มีข้อมูลคนขับ/บัญชีธนาคาร)
+/file/
