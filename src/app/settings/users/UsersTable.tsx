@@ -5,7 +5,7 @@ import { KeyRound, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { Modal } from "@/components/ui/Modal";
 import { button, input, label } from "@/components/ui/styles";
-import { MIN_PASSWORD, ROLES, ROLE_LABEL, type Role } from "@/lib/auth/roles";
+import { ROLES, ROLE_LABEL, type Role } from "@/lib/auth/roles";
 import { createUser, deleteUser, resetPassword, setActive, setRole, updateProfile, type Result } from "./actions";
 
 export interface UserRow {
@@ -316,13 +316,12 @@ function AddUserDialog({
             id="au-password"
             type="text"
             required
-            minLength={MIN_PASSWORD}
             autoComplete="off"
             value={v.password}
             onChange={(e) => setV({ ...v, password: e.target.value })}
             className={clsx(input, "font-mono")}
           />
-          <p className="mt-1 text-xs text-slate-500">อย่างน้อย {MIN_PASSWORD} ตัว · แจ้งผู้ใช้ให้เปลี่ยนเองหลังล็อกอิน</p>
+          <p className="mt-1 text-xs text-slate-500">แจ้งผู้ใช้ให้เปลี่ยนเองหลังล็อกอิน</p>
         </div>
         {error && (
           <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">
@@ -379,7 +378,6 @@ function ResetPasswordDialog({
             id="rp-password"
             type="text"
             required
-            minLength={MIN_PASSWORD}
             autoComplete="off"
             value={pw}
             onChange={(e) => setPw(e.target.value)}

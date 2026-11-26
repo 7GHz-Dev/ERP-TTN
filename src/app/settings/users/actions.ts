@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
-  MIN_PASSWORD,
   ROLES,
+  authErrorText,
+  passwordError,
   guardAdminChange,
   guardDelete,
   isValidUsername,
@@ -30,7 +31,6 @@ async function run(fn: (actorId: string) => Promise<string | null>): Promise<Res
   }
 }
 
-const passwordError = (p: string) => (p.length < MIN_PASSWORD ? `รหัสผ่านต้องมีอย่างน้อย ${MIN_PASSWORD} ตัว` : null);
 const roleError = (r: string) => (ROLES.includes(r as Role) ? null : "บทบาทไม่ถูกต้อง");
 
 async function allProfiles(): Promise<ProfileLite[]> {
@@ -50,7 +50,7 @@ export async function createUser(input: { username: string; displayName: string;
     if (dup.data) return "ชื่อผู้ใช้นี้มีแล้ว";
 
     const u = await sb.auth.admin.createUser({ email: usernameToEmail(username), password: input.password, email_confirm: true });
-    if (u.error) return /already|exists|registered/i.test(u.error.message) ? "ชื่อผู้ใช้นี้มีแล้ว" : u.error.message;
+    if (u.error) return /already|exists|registered/i.test(u.error.message) ? "ชื่อผู้ใช้นี้มีแล้ว" : authErrorText(u.error.message);
     const p = await sb.from("profiles").insert({
       id: u.data.user.id,
       username,
@@ -115,6 +115,6 @@ export async function resetPassword(id: string, password: string): Promise<Resul
     const bad = passwordError(password);
     if (bad) return bad;
     const { error } = await supabaseAdmin().auth.admin.updateUserById(id, { password });
-    return error ? error.message : null;
+    return error ? authErrorText(error.message) : null;
   });
 }

@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { button, input, label } from "@/components/ui/styles";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { DEMO } from "@/lib/demo";
-import { MIN_PASSWORD } from "@/lib/auth/roles";
+import { authErrorText, passwordError } from "@/lib/auth/roles";
 
 /** เปลี่ยนรหัสผ่านของตัวเอง (ไม่ต้องใช้คีย์ลับ) */
 export function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -19,13 +19,14 @@ export function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (pw.length < MIN_PASSWORD) return setError(`รหัสผ่านต้องมีอย่างน้อย ${MIN_PASSWORD} ตัว`);
+    const bad = passwordError(pw);
+    if (bad) return setError(bad);
     if (pw !== pw2) return setError("รหัสผ่านไม่ตรงกัน");
     setBusy(true);
     setError(null);
     const { error } = DEMO ? { error: null } : await supabaseBrowser().auth.updateUser({ password: pw });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) return setError(authErrorText(error.message));
     toast({ message: "เปลี่ยนรหัสผ่านแล้ว" });
     setPw("");
     setPw2("");

@@ -4,6 +4,8 @@ import {
   can,
   guardAdminChange,
   guardDelete,
+  passwordError,
+  authErrorText,
   settingsTabs,
   isValidUsername,
   loginIdToEmail,
@@ -110,5 +112,24 @@ describe("guardDelete", () => {
   it("ลบคนอื่นได้ (รวม admin ที่ถูกปิด)", () => {
     expect(guardDelete(all, "a1", "p1")).toBeNull();
     expect(guardDelete(all, "a1", "a2")).toBeNull();
+  });
+});
+
+describe("passwordError", () => {
+  it("ห้ามว่าง แต่ไม่จำกัดความยาวขั้นต่ำ", () => {
+    expect(passwordError("")).toBe("กรอกรหัสผ่าน");
+    expect(passwordError("1")).toBeNull();
+    expect(passwordError("1234")).toBeNull();
+  });
+});
+
+describe("authErrorText", () => {
+  it("แปลข้อความขั้นต่ำของ Supabase เป็นภาษาไทย", () => {
+    expect(authErrorText("Password should be at least 6 characters.")).toBe(
+      "Supabase กำหนดรหัสผ่านอย่างน้อย 6 ตัว (ปรับได้ที่ Supabase → Authentication → Providers → Email → Minimum password length)",
+    );
+  });
+  it("ข้อความอื่นคืนตามเดิม", () => {
+    expect(authErrorText("User not found")).toBe("User not found");
   });
 });

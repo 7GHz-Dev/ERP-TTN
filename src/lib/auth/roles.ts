@@ -36,7 +36,15 @@ export function can(role: Role | null, action: Action): boolean {
 /** Supabase Auth ต้องใช้อีเมล — ชื่อผู้ใช้จึงถูกแปลงเป็นอีเมลภายในที่ไม่มีใครส่งเมลถึง */
 export const INTERNAL_EMAIL_DOMAIN = "users.ttn.internal";
 
-export const MIN_PASSWORD = 8;
+/** ระบบไม่จำกัดความยาวรหัสผ่าน (ห้ามว่างเท่านั้น) — ขั้นต่ำจริงขึ้นกับการตั้งค่าใน Supabase Auth */
+export const passwordError = (p: string) => (p === "" ? "กรอกรหัสผ่าน" : null);
+
+/** แปลข้อความจาก Supabase Auth ที่ผู้ใช้เจอบ่อย */
+export function authErrorText(message: string): string {
+  const min = /at least (\d+) characters/i.exec(message);
+  if (min) return `Supabase กำหนดรหัสผ่านอย่างน้อย ${min[1]} ตัว (ปรับได้ที่ Supabase → Authentication → Providers → Email → Minimum password length)`;
+  return message;
+}
 
 export const normalizeUsername = (s: string) => s.trim().toLowerCase();
 
