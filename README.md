@@ -23,11 +23,24 @@
 
 ### 1. Supabase
 
-1. เปิด SQL Editor แล้วรันไฟล์ [`supabase/migrations/20261118000000_init.sql`](supabase/migrations/20261118000000_init.sql)
+1. เปิด SQL Editor แล้วรันไฟล์ใน [`supabase/migrations/`](supabase/migrations/) ตามลำดับชื่อไฟล์
 2. **Authentication → Sign In / Providers → ปิด "Allow new users to sign up"** (ให้เฉพาะคนที่แอดมินสร้างบัญชีให้เท่านั้นเข้าได้)
-3. **Authentication → Users → Add user** สร้างบัญชีให้ทีมจัดรถ (อีเมล + รหัสผ่าน)
+3. **Authentication → Users → Add user** สร้างบัญชีแรก (อีเมล + รหัสผ่าน) แล้วรัน `20261126000000_user_roles.sql` อีกครั้ง — ผู้ใช้ที่มีอยู่ตอนรันจะเป็น admin
+4. ผู้ใช้คนอื่นสร้างจากในแอป: เมนูบัญชี → **จัดการผู้ใช้** (`/users`)
 
-ทุกตารางเปิด Row Level Security: ต้องล็อกอินจึงอ่าน/เขียนได้
+### ผู้ใช้และบทบาท
+
+ล็อกอินด้วยชื่อผู้ใช้ (เช่น `aon`) หรืออีเมล · ฐานข้อมูลบังคับสิทธิ์ด้วย Row Level Security ตามบทบาท
+
+| | ผู้ดูแลระบบ (`admin`) | จัดรถ-ประสานงาน (`planner`) | ตรวจความพร้อม (`readiness`) |
+|---|---|---|---|
+| ดูแพลน / งาน / คนขับ | ✓ | ✓ | ✓ |
+| นำเข้าแพลน จัดรถ แก้ราคา เปลี่ยนสถานะ ลบตู้ | ✓ | ✓ | – |
+| เพิ่มคนขับรถร่วม · แก้อัตราค่าขนส่ง | ✓ | ✓ | – |
+| แจ้ง/ลบวันไม่ว่าง · แก้ข้อมูลคนขับ | ✓ | ✓ | ✓ |
+| แก้ตัวเลือก (lookups) · จัดการผู้ใช้ | ✓ | – | – |
+
+บัญชีที่ไม่มีบทบาทหรือถูกปิดอ่าน/เขียนอะไรไม่ได้ · ตรวจสิทธิ์กับฐานข้อมูลจริงได้ด้วย `npm run check-rls`
 
 ### 2. ตั้งค่าเครื่อง
 
@@ -67,8 +80,8 @@ npm run import-drivers -- --file "file/driver master.xlsx"
 
 ### 4. Vercel
 
-ตั้ง Environment Variables 2 ตัว: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-(ห้ามใส่ `SUPABASE_SECRET_KEY` ใน Vercel)
+ตั้ง Environment Variables 3 ตัว: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
+`SUPABASE_SECRET_KEY` ใช้ฝั่ง server เท่านั้น (หน้าจัดการผู้ใช้) — ห้ามตั้งชื่อขึ้นต้นด้วย `NEXT_PUBLIC_`
 
 ## พัฒนา
 
