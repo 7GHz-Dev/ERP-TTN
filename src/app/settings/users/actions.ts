@@ -7,6 +7,7 @@ import {
   MIN_PASSWORD,
   ROLES,
   guardAdminChange,
+  guardDelete,
   isValidUsername,
   normalizeUsername,
   usernameToEmail,
@@ -22,7 +23,7 @@ async function run(fn: (actorId: string) => Promise<string | null>): Promise<Res
     const actor = await requireAdmin();
     const error = await fn(actor.id);
     if (error) return { ok: false, error };
-    revalidatePath("/users");
+    revalidatePath("/settings");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -61,6 +62,29 @@ export async function createUser(input: { username: string; displayName: string;
       return `บันทึกผู้ใช้ไม่สำเร็จ: ${p.error.message}`;
     }
     return null;
+  });
+}
+
+export async function updateProfile(id: string, input: { username: string; displayName: string }): Promise<Result> {
+  return run(async () => {
+    const username = normalizeUsername(input.username);
+    if (!isValidUsername(username)) return "ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - ยาว 2–32 ตัว";
+    const sb = supabaseAdmin();
+    const dup = await sb.from("profiles").select("id").eq("username", username).neq("id", id).maybeSingle();
+    if (dup.data) return "ชื่อผู้ใช้นี้มีแล้ว";
+    // อีเมลใน Auth ไม่เปลี่ยน — หน้าล็อกอินหาอีเมลจาก profiles.username
+    const { error } = await sb.from("profiles").update({ username, display_name: input.displayName.trim() || username }).eq("id", id);
+    return error ? error.message : null;
+  });
+}
+
+export async function deleteUser(id: string): Promise<Result> {
+  return run(async (actorId) => {
+    const bad = guardDelete(await allProfiles(), actorId, id);
+    if (bad) return bad;
+    // profiles ลบตามด้วย on delete cascade · ประวัติงาน (created_by) ไม่มี FK จึงยังอยู่
+    const { error } = await supabaseAdmin().auth.admin.deleteUser(id);
+    return error ? error.message : null;
   });
 }
 

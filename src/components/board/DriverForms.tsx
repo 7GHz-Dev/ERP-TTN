@@ -11,27 +11,37 @@ const JOB_CLASSES = ["เบา", "เบาและหนัก", "หนั�
 const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงเทพ", "กรุงไทย", "กรุงศรีอยุธยา", "ทหารไทยธนชาต", "ออมสิน", "ธ.ก.ส."];
 const LEAVE_NOTES = ["ลา", "ติดธุระส่วนตัว", "ซ่อมรถ", "รับงานนอก", "ไปต่างจังหวัด"];
 
+export type DriverInput = Omit<Driver, "id" | "active" | "peak_code" | "doc_note"> & { active?: boolean };
+
+/** เพิ่มคนขับ (ไม่ส่ง driver) หรือแก้ไขคนขับเดิม */
 export function AddDriverDialog({
   open,
   onClose,
   fleets,
   onSave,
+  driver,
 }: {
   open: boolean;
   onClose: () => void;
   fleets: string[];
-  onSave: (d: Omit<Driver, "id" | "active" | "peak_code" | "doc_note">) => Promise<void>;
+  onSave: (d: DriverInput) => Promise<void>;
+  driver?: Driver;
 }) {
-  const empty = { name: "", truck_no: "", phone: "", truck_type: "partner" as TruckType, fleet: "", job_class: "เบาและหนัก", bank: "", account_name: "", account_no: "" };
-  const [f, setF] = useState(empty);
+  const s = (v: string | null | undefined) => v ?? "";
+  const initial = driver
+    ? { name: driver.name, truck_no: s(driver.truck_no), phone: s(driver.phone), truck_type: driver.truck_type, fleet: s(driver.fleet), job_class: s(driver.job_class), bank: s(driver.bank), account_name: s(driver.account_name), account_no: s(driver.account_no), active: driver.active }
+    : { name: "", truck_no: "", phone: "", truck_type: "partner" as TruckType, fleet: "", job_class: "เบาและหนัก", bank: "", account_name: "", account_no: "", active: true };
+  const [f, setF] = useState(initial);
+  const classes = f.job_class && !JOB_CLASSES.includes(f.job_class) ? [f.job_class, ...JOB_CLASSES] : JOB_CLASSES;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const set = (k: Exclude<keyof typeof f, "active">) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!f.name.trim() || !f.truck_no.trim()) return setError("กรอกชื่อและทะเบียนรถ");
+    // ข้อมูลเดิมจากการนำเข้าบางคนไม่มีทะเบียน — บังคับเฉพาะตอนเพิ่มใหม่
+    if (!f.name.trim() || (!driver && !f.truck_no.trim())) return setError(driver ? "กรอกชื่อ" : "กรอกชื่อและทะเบียนรถ");
     setBusy(true);
     setError(null);
     try {
@@ -46,6 +56,7 @@ export function AddDriverDialog({
         bank: t(f.bank),
         account_name: t(f.account_name) ?? f.name.trim(),
         account_no: t(f.account_no),
+        ...(driver ? { active: f.active } : {}),
       });
       onClose();
     } catch (err) {
@@ -59,7 +70,7 @@ export function AddDriverDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title="เพิ่มคนขับ / รถร่วม"
+      title={driver ? `แก้ไขคนขับ · ${driver.id}` : "เพิ่มคนขับ / รถร่วม"}
       footer={
         <>
           <button type="button" className={button("secondary")} onClick={onClose}>
@@ -67,7 +78,7 @@ export function AddDriverDialog({
           </button>
           <button type="submit" form="add-driver" className={button("primary")} disabled={busy}>
             {busy && <Loader2 className="size-4 animate-spin" aria-hidden />}
-            เพิ่มคนขับ
+            {driver ? "บันทึก" : "เพิ่มคนขับ"}
           </button>
         </>
       }
@@ -77,7 +88,7 @@ export function AddDriverDialog({
           <input id="ad-name" autoFocus value={f.name} onChange={set("name")} className={input} required />
         </F>
         <F id="ad-truck" l="ทะเบียนรถ (หัว - หาง) *">
-          <input id="ad-truck" value={f.truck_no} onChange={set("truck_no")} placeholder="70-1234 ตาก - 70-1235 ตาก" className={input} required />
+          <input id="ad-truck" value={f.truck_no} onChange={set("truck_no")} placeholder="70-1234 ตาก - 70-1235 ตาก" className={input} required={!driver} />
         </F>
         <F id="ad-phone" l="เบอร์โทร">
           <input id="ad-phone" type="tel" value={f.phone} onChange={set("phone")} className={input} />
@@ -98,7 +109,7 @@ export function AddDriverDialog({
         </F>
         <F id="ad-class" l="ประเภทที่รับงาน">
           <select id="ad-class" value={f.job_class} onChange={set("job_class")} className={input}>
-            {JOB_CLASSES.map((x) => (
+            {classes.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
@@ -117,6 +128,12 @@ export function AddDriverDialog({
         <F id="ad-accname" l="ชื่อบัญชี (ว่าง = ชื่อคนขับ)" wide>
           <input id="ad-accname" value={f.account_name} onChange={set("account_name")} placeholder={f.name} className={input} />
         </F>
+        {driver && (
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="size-4 accent-blue-800" />
+            ใช้งานอยู่ (ไม่ติ๊ก = ไม่แสดงให้จัดรถ)
+          </label>
+        )}
         {error && (
           <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800 sm:col-span-2">
             {error}

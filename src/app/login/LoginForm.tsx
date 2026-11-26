@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { button, input, label } from "@/components/ui/styles";
-import { loginIdToEmail } from "@/lib/auth/roles";
+import { DEMO } from "@/lib/demo";
+import { signIn } from "./actions";
 
 export function LoginForm() {
   const router = useRouter();
@@ -18,10 +18,10 @@ export function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error } = await supabaseBrowser().auth.signInWithPassword({ email: loginIdToEmail(loginId), password });
+    const r = DEMO ? ({ ok: true } as const) : await signIn(loginId, password);
     setBusy(false);
-    if (error) {
-      setError(error.message.includes("Invalid login") ? "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" : error.message);
+    if (!r.ok) {
+      setError(r.error);
       return;
     }
     router.replace("/");

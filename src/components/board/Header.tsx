@@ -1,12 +1,12 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, KeyRound, Loader2, LogOut, Plus, ShieldCheck, Users, Check } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, KeyRound, Loader2, LogOut, Plus, Settings, Users, Check } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
 import clsx from "clsx";
 import { addDays, dayOfMonth, formatThaiDateLong, weekdayShort } from "@/lib/logic/dates";
 import { button } from "@/components/ui/styles";
-import { ROLE_LABEL, can, type CurrentUser } from "@/lib/auth/roles";
+import { ROLE_LABEL, settingsTabs, type CurrentUser } from "@/lib/auth/roles";
 
 interface Props {
   date: string;
@@ -61,6 +61,11 @@ export function Header({ date, today, setDate, dayCounts, saving, user, onImport
               นำเข้าแพลน
             </button>
           )}
+          {settingsTabs(user.role).length > 0 && (
+            <Link href="/settings" aria-label="ตั้งค่า" title="ตั้งค่า" className={button("ghost", "md", "w-10 px-0")}>
+              <Settings className="size-5" aria-hidden />
+            </Link>
+          )}
           <details className="relative">
             <summary
               className="grid size-10 cursor-pointer list-none place-items-center rounded-full bg-slate-100 text-sm font-semibold uppercase text-slate-700 hover:bg-slate-200 [&::-webkit-details-marker]:hidden"
@@ -75,10 +80,10 @@ export function Header({ date, today, setDate, dayCounts, saving, user, onImport
                   {user.username} · {user.role ? ROLE_LABEL[user.role] : "ไม่มีสิทธิ์"}
                 </p>
               </div>
-              {can(user.role, "users.manage") && (
-                <Link href="/users" className={button("ghost", "md", "w-full justify-start")}>
-                  <ShieldCheck className="size-4" aria-hidden />
-                  จัดการผู้ใช้
+              {settingsTabs(user.role).length > 0 && (
+                <Link href="/settings" className={button("ghost", "md", "w-full justify-start")}>
+                  <Settings className="size-4" aria-hidden />
+                  ตั้งค่า
                 </Link>
               )}
               <button type="button" onClick={onChangePassword} className={button("ghost", "md", "w-full justify-start")}>

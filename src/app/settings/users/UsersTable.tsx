@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
-import { ArrowLeft, KeyRound, Loader2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { Modal } from "@/components/ui/Modal";
 import { button, input, label } from "@/components/ui/styles";
 import { MIN_PASSWORD, ROLES, ROLE_LABEL, type Role } from "@/lib/auth/roles";
-import { createUser, resetPassword, setActive, setRole, type Result } from "./actions";
+import { createUser, deleteUser, resetPassword, setActive, setRole, updateProfile, type Result } from "./actions";
 
 export interface UserRow {
   id: string;
@@ -27,6 +26,7 @@ export function UsersTable({ rows, meId, loadError }: { rows: UserRow[]; meId: s
   const [notice, setNotice] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [resetFor, setResetFor] = useState<UserRow | null>(null);
+  const [editFor, setEditFor] = useState<UserRow | null>(null);
 
   const act = (fn: () => Promise<Result>, ok: string) =>
     start(async () => {
@@ -38,13 +38,9 @@ export function UsersTable({ rows, meId, loadError }: { rows: UserRow[]; meId: s
     });
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4 px-4 py-6">
+    <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/" className={button("ghost", "md")}>
-          <ArrowLeft className="size-4" aria-hidden />
-          หน้าแพลน
-        </Link>
-        <h1 className="text-lg font-semibold">จัดการผู้ใช้</h1>
+        <p className="text-sm text-slate-600">ผู้ใช้ {rows.length} คน · ล็อกอินด้วยชื่อผู้ใช้</p>
         {pending && <Loader2 className="size-4 animate-spin text-slate-500" aria-label="กำลังบันทึก" />}
         <button type="button" className={button("primary", "md", "ml-auto")} onClick={() => setAdding(true)}>
           <UserPlus className="size-4" aria-hidden />
@@ -73,7 +69,7 @@ export function UsersTable({ rows, meId, loadError }: { rows: UserRow[]; meId: s
               <th className="px-3 py-2">สถานะ</th>
               <th className="px-3 py-2">เข้าระบบล่าสุด</th>
               <th className="px-3 py-2">
-                <span className="sr-only">รหัสผ่าน</span>
+                <span className="sr-only">จัดการ</span>
               </th>
             </tr>
           </thead>
@@ -114,10 +110,30 @@ export function UsersTable({ rows, meId, loadError }: { rows: UserRow[]; meId: s
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-500">{fmt(u.lastSignIn)}</td>
                   <td className="px-3 py-2">
-                    <button type="button" disabled={pending} onClick={() => setResetFor(u)} className={button("ghost", "sm")}>
-                      <KeyRound className="size-4" aria-hidden />
-                      ตั้งรหัสใหม่
-                    </button>
+                    <div className="flex justify-end gap-1">
+                      <button type="button" disabled={pending} onClick={() => setEditFor(u)} className={button("ghost", "sm")} aria-label={`แก้ไข ${u.username}`}>
+                        <Pencil className="size-4" aria-hidden />
+                        แก้ไข
+                      </button>
+                      <button type="button" disabled={pending} onClick={() => setResetFor(u)} className={button("ghost", "sm")}>
+                        <KeyRound className="size-4" aria-hidden />
+                        ตั้งรหัสใหม่
+                      </button>
+                      {!me && (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          aria-label={`ลบ ${u.username}`}
+                          className={button("ghost", "sm", "text-rose-700 hover:bg-rose-50")}
+                          onClick={() => {
+                            if (!window.confirm(`ลบผู้ใช้ ${u.username} ถาวร? (ประวัติงานยังอยู่ ถ้าแค่ไม่ให้เข้าระบบ ใช้ "ปิด" แทน)`)) return;
+                            act(() => deleteUser(u.id), `ลบผู้ใช้ ${u.username} แล้ว`);
+                          }}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -144,7 +160,76 @@ export function UsersTable({ rows, meId, loadError }: { rows: UserRow[]; meId: s
           return r;
         }}
       />
-    </main>
+      {editFor && (
+        <EditUserDialog
+          key={editFor.id}
+          user={editFor}
+          onClose={() => setEditFor(null)}
+          onSubmit={async (v) => {
+            const r = await updateProfile(editFor.id, v);
+            if (r.ok) setNotice(`บันทึก ${v.username.trim().toLowerCase()} แล้ว`);
+            return r;
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+function EditUserDialog({
+  user,
+  onClose,
+  onSubmit,
+}: {
+  user: UserRow;
+  onClose: () => void;
+  onSubmit: (v: { username: string; displayName: string }) => Promise<Result>;
+}) {
+  const [v, setV] = useState({ username: user.username, displayName: user.displayName });
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const r = await onSubmit(v);
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    onClose();
+  }
+
+  return (
+    <Modal open onClose={onClose} size="sm" title={`แก้ไขผู้ใช้ · ${user.username}`} footer={<Footer onClose={onClose} form="edit-user" busy={busy} />}>
+      <form id="edit-user" onSubmit={submit} className="space-y-4">
+        <div>
+          <label htmlFor="eu-username" className={label}>
+            ชื่อผู้ใช้ (ใช้ล็อกอิน)
+          </label>
+          <input
+            id="eu-username"
+            required
+            autoCapitalize="none"
+            spellCheck={false}
+            value={v.username}
+            onChange={(e) => setV({ ...v, username: e.target.value })}
+            className={clsx(input, "font-mono")}
+          />
+          <p className="mt-1 text-xs text-slate-500">เปลี่ยนแล้วต้องล็อกอินด้วยชื่อใหม่ · รหัสผ่านเดิม</p>
+        </div>
+        <div>
+          <label htmlFor="eu-display" className={label}>
+            ชื่อที่แสดง
+          </label>
+          <input id="eu-display" value={v.displayName} onChange={(e) => setV({ ...v, displayName: e.target.value })} className={input} />
+        </div>
+        {error && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {error}
+          </p>
+        )}
+      </form>
+    </Modal>
   );
 }
 
