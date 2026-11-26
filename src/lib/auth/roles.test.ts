@@ -3,6 +3,8 @@ import {
   ROLES,
   can,
   guardAdminChange,
+  guardDelete,
+  settingsTabs,
   isValidUsername,
   loginIdToEmail,
   normalizeUsername,
@@ -81,5 +83,32 @@ describe("guardAdminChange", () => {
   it("เปลี่ยนบทบาทคนอื่นที่ไม่ใช่ admin ได้", () => {
     expect(guardAdminChange(all, "a1", "p1", { role: "readiness" })).toBeNull();
     expect(guardAdminChange(all, "a1", "r1", { active: false })).toBeNull();
+  });
+});
+
+describe("settingsTabs", () => {
+  it("แต่ละบทบาทเห็นแท็บตามสิทธิ์", () => {
+    expect(settingsTabs("admin")).toEqual(["users", "lookups", "rates", "drivers"]);
+    expect(settingsTabs("planner")).toEqual(["rates", "drivers"]);
+    expect(settingsTabs("readiness")).toEqual(["drivers"]);
+    expect(settingsTabs(null)).toEqual([]);
+  });
+});
+
+describe("guardDelete", () => {
+  const all: ProfileLite[] = [
+    { id: "a1", role: "admin", active: true },
+    { id: "a2", role: "admin", active: false },
+    { id: "p1", role: "planner", active: true },
+  ];
+  it("ลบบัญชีของตัวเองไม่ได้", () => {
+    expect(guardDelete(all, "a1", "a1")).toBe("ลบบัญชีของตัวเองไม่ได้");
+  });
+  it("ลบ admin ที่ใช้งานอยู่คนสุดท้ายไม่ได้", () => {
+    expect(guardDelete(all, "p1", "a1")).toBe("ต้องมีผู้ดูแลระบบอย่างน้อย 1 คน");
+  });
+  it("ลบคนอื่นได้ (รวม admin ที่ถูกปิด)", () => {
+    expect(guardDelete(all, "a1", "p1")).toBeNull();
+    expect(guardDelete(all, "a1", "a2")).toBeNull();
   });
 });

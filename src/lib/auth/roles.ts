@@ -81,3 +81,30 @@ export interface CurrentUser {
   role: Role | null;
   active: boolean;
 }
+
+export type SettingsTab = "users" | "lookups" | "rates" | "drivers";
+
+export const SETTINGS_TAB_LABEL: Record<SettingsTab, string> = {
+  users: "ผู้ใช้",
+  lookups: "ตัวเลือก",
+  rates: "อัตราค่าขนส่ง",
+  drivers: "คนขับ",
+};
+
+const TAB_ACTION: Record<SettingsTab, Action> = {
+  users: "users.manage",
+  lookups: "lookups.edit",
+  rates: "rates.edit",
+  drivers: "driver.edit",
+};
+
+/** แท็บในหน้าตั้งค่าที่บทบาทนี้เห็น (เรียงตามลำดับที่แสดง) */
+export function settingsTabs(role: Role | null): SettingsTab[] {
+  return (Object.keys(TAB_ACTION) as SettingsTab[]).filter((t) => can(role, TAB_ACTION[t]));
+}
+
+/** ตรวจก่อนลบผู้ใช้ — คืนข้อความผิดพลาด หรือ null ถ้าลบได้ */
+export function guardDelete(all: ProfileLite[], actorId: string, targetId: string): string | null {
+  if (actorId === targetId) return "ลบบัญชีของตัวเองไม่ได้";
+  return guardAdminChange(all, actorId, targetId, { active: false });
+}
