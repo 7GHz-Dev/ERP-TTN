@@ -56,6 +56,8 @@ interface Props {
   onMessages: () => void;
   onImport: () => void;
   onClearDrivers: (jobs: Job[]) => void;
+  /** ดูได้อย่างเดียว (บทบาทตรวจความพร้อม): ไม่มีปุ่มจัดรถ/แก้ราคา/เปลี่ยนสถานะ/นำเข้า */
+  readOnly: boolean;
 }
 
 export function JobList(p: Props) {
@@ -134,11 +136,13 @@ export function JobList(p: Props) {
               className={clsx(input, "h-9 py-1.5 pl-9")}
             />
           </div>
-          <button type="button" onClick={p.onAutoAssign} disabled={counts.unassigned === 0} className={button("accent", "md", "h-9")}>
-            <Sparkles className="size-4" aria-hidden />
-            จัดรถอัตโนมัติ
-            {counts.unassigned > 0 && <span className="rounded-full bg-slate-950/10 px-1.5 text-xs tabular-nums">{counts.unassigned}</span>}
-          </button>
+          {!p.readOnly && (
+            <button type="button" onClick={p.onAutoAssign} disabled={counts.unassigned === 0} className={button("accent", "md", "h-9")}>
+              <Sparkles className="size-4" aria-hidden />
+              จัดรถอัตโนมัติ
+              {counts.unassigned > 0 && <span className="rounded-full bg-slate-950/10 px-1.5 text-xs tabular-nums">{counts.unassigned}</span>}
+            </button>
+          )}
           <button type="button" onClick={p.onMessages} disabled={counts.all === 0} className={button("secondary", "md", "h-9")}>
             <MessageSquareText className="size-4" aria-hidden />
             ข้อความ LINE
@@ -150,12 +154,13 @@ export function JobList(p: Props) {
       {selectedJobs.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-blue-100 bg-blue-50 px-3 py-2 text-sm">
           <span className="font-medium text-blue-900">เลือก {selectedJobs.length} ตู้</span>
-          {bulkSteps.map((b) => (
-            <button key={b.field} type="button" className={button("secondary", "sm")} onClick={() => p.onStep(b.jobs, b.field)}>
-              {stepLabel[b.field]} ({b.jobs.length})
-            </button>
-          ))}
-          {selectedJobs.some((j) => j.driver_id && !j.pickup_date) && (
+          {!p.readOnly &&
+            bulkSteps.map((b) => (
+              <button key={b.field} type="button" className={button("secondary", "sm")} onClick={() => p.onStep(b.jobs, b.field)}>
+                {stepLabel[b.field]} ({b.jobs.length})
+              </button>
+            ))}
+          {!p.readOnly && selectedJobs.some((j) => j.driver_id && !j.pickup_date) && (
             <button type="button" className={button("secondary", "sm")} onClick={() => p.onClearDrivers(selectedJobs.filter((j) => j.driver_id && !j.pickup_date))}>
               ล้างคนขับ
             </button>
@@ -181,10 +186,12 @@ export function JobList(p: Props) {
             <>
               <p className="font-medium">ยังไม่มีแพลนลากตู้วันนี้</p>
               <p className="max-w-sm text-sm text-slate-500">คัดลอกรายการตู้จาก Excel หรือข้อความ LINE ที่ partner ส่งมา แล้ววางในหน้านำเข้าแพลน</p>
-              <button type="button" onClick={p.onImport} className={button("primary", "md")}>
-                <Plus className="size-4" aria-hidden />
-                นำเข้าแพลน
-              </button>
+              {!p.readOnly && (
+                <button type="button" onClick={p.onImport} className={button("primary", "md")}>
+                  <Plus className="size-4" aria-hidden />
+                  นำเข้าแพลน
+                </button>
+              )}
             </>
           ) : (
             <p className="text-sm text-slate-500">ไม่มีตู้ตามตัวกรองนี้</p>
@@ -354,9 +361,10 @@ function ReturnBadge({ j, today }: { j: Job; today: string }) {
   );
 }
 
-function DriverCell({ j, driversById, onPick, compact }: RowProps & { compact?: boolean }) {
+function DriverCell({ j, driversById, onPick, compact, readOnly }: RowProps & { compact?: boolean }) {
   const d = j.driver_id ? driversById.get(j.driver_id) : undefined;
-  const locked = Boolean(j.pickup_date) || j.cancelled;
+  const locked = Boolean(j.pickup_date) || j.cancelled || readOnly;
+  if (!j.driver_name && readOnly) return <span className="text-sm text-amber-700">ยังไม่จัดรถ</span>;
   if (!j.driver_name) {
     return (
       <button
@@ -378,7 +386,7 @@ function DriverCell({ j, driversById, onPick, compact }: RowProps & { compact?: 
       type="button"
       onClick={() => onPick(j.id)}
       disabled={locked}
-      title={locked ? "รับตู้แล้ว เปลี่ยนคนขับได้ที่หน้าแก้ไข" : "เปลี่ยนคนขับ"}
+      title={readOnly ? undefined : locked ? "รับตู้แล้ว เปลี่ยนคนขับได้ที่หน้าแก้ไข" : "เปลี่ยนคนขับ"}
       className={clsx(
         "group/driver -mx-1.5 flex min-w-0 max-w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left",
         !locked && "cursor-pointer hover:bg-slate-100",
@@ -397,11 +405,12 @@ function DriverCell({ j, driversById, onPick, compact }: RowProps & { compact?: 
   );
 }
 
-function PriceInput({ j, rates, driversById, onPatch }: RowProps) {
+function PriceInput({ j, rates, driversById, onPatch, readOnly }: RowProps) {
   const d = j.driver_id ? driversById.get(j.driver_id) : undefined;
   const suggested = d ? suggestPrice(rates, { destination: j.destination, truckType: d.truck_type, weightKg: jobWeightKg(j) }) : null;
   const [val, setVal] = useState(j.price?.toString() ?? "");
   const [editing, setEditing] = useState(false);
+  if (readOnly) return <span className="inline-block w-24 px-2 text-right tabular-nums">{j.price === null ? "–" : formatBaht(j.price)}</span>;
 
   function commit() {
     const raw = val.replace(/,/g, "").trim();
@@ -444,9 +453,9 @@ function PriceInput({ j, rates, driversById, onPatch }: RowProps) {
   );
 }
 
-function StepButton({ j, onStep, size = "sm" }: RowProps & { size?: "sm" | "md" }) {
+function StepButton({ j, onStep, readOnly, size = "sm" }: RowProps & { size?: "sm" | "md" }) {
   const step = nextStep(j);
-  if (!step) return null;
+  if (!step || readOnly) return null;
   return (
     <button type="button" onClick={() => onStep([j], step.field)} className={button("secondary", size)}>
       <CheckSquare className="size-4 text-slate-500" aria-hidden />

@@ -15,7 +15,8 @@ interface Props {
   dayCounts: Map<string, { total: number; unassigned: number }>;
   saving: boolean;
   user: CurrentUser;
-  onImport: () => void;
+  /** ไม่ส่ง = ไม่มีสิทธิ์นำเข้าแพลน (ซ่อนปุ่ม) */
+  onImport?: () => void;
   onChangePassword: () => void;
   onDrivers: () => void;
   onSignOut: () => void;
@@ -54,10 +55,12 @@ export function Header({ date, today, setDate, dayCounts, saving, user, onImport
             <Users className="size-4" aria-hidden />
             <span className="max-sm:sr-only">คนขับ</span>
           </button>
-          <button type="button" onClick={onImport} className={button("primary", "md")}>
-            <Plus className="size-4" aria-hidden />
-            นำเข้าแพลน
-          </button>
+          {onImport && (
+            <button type="button" onClick={onImport} className={button("primary", "md")}>
+              <Plus className="size-4" aria-hidden />
+              นำเข้าแพลน
+            </button>
+          )}
           <details className="relative">
             <summary
               className="grid size-10 cursor-pointer list-none place-items-center rounded-full bg-slate-100 text-sm font-semibold uppercase text-slate-700 hover:bg-slate-200 [&::-webkit-details-marker]:hidden"

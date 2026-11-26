@@ -37,7 +37,7 @@ import { JobDialog } from "./JobDialog";
 import { AddDriverDialog, LeaveDialog } from "./DriverForms";
 import { formatTons } from "./ui";
 import { ChangePasswordDialog } from "./AccountDialogs";
-import type { CurrentUser } from "@/lib/auth/roles";
+import { can, type CurrentUser } from "@/lib/auth/roles";
 
 export function PlanBoard(props: { initialDate: string; user: CurrentUser }) {
   return (
@@ -61,6 +61,9 @@ const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/
 function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }) {
   const router = useRouter();
   const toast = useToast();
+  // สิทธิ์ที่ฐานข้อมูลบังคับอยู่แล้ว (RLS) — ตรงนี้แค่ซ่อนปุ่มที่บทบาทนี้ใช้ไม่ได้
+  const canPlan = can(user.role, "plan.edit");
+  const canAddDriver = can(user.role, "driver.add");
   const today = todayBangkok();
 
   const [date, setDateState] = useState(initialDate);
@@ -352,7 +355,7 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
         dayCounts={dayCounts}
         saving={saving > 0}
         user={user}
-        onImport={() => setDialog({ type: "import" })}
+        onImport={canPlan ? () => setDialog({ type: "import" }) : undefined}
         onChangePassword={() => setDialog({ type: "password" })}
         onDrivers={() => setDialog({ type: "drivers" })}
         onSignOut={signOut}
@@ -388,7 +391,8 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
             selected={selected}
             setSelected={setSelected}
             activeId={activeId}
-            setActiveId={setActiveId}
+            setActiveId={canPlan ? setActiveId : () => {}}
+            readOnly={!canPlan}
             driversById={driversById}
             rates={rates}
             today={today}
@@ -416,8 +420,8 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
               date={date}
               ranked={ranked}
               lastJobDate={lastJobDate}
-              onPick={pickFromPanel}
-              pickEnabled={!!activeJob}
+              onPick={canPlan ? pickFromPanel : undefined}
+              pickEnabled={canPlan && !!activeJob}
               currentDriverId={activeJob?.driver_id}
               job={activeJob}
               onLeave={setLeaveFor}
@@ -425,12 +429,14 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
                 <div className="border-b border-slate-200">
                   <div className="flex items-center justify-between px-3 py-2.5">
                     <h2 className="font-semibold">คนขับ</h2>
-                    <button type="button" onClick={() => setDialog({ type: "add-driver" })} className={button("ghost", "sm")}>
-                      <UserPlus className="size-4" aria-hidden />
-                      เพิ่มคนขับ
-                    </button>
+                    {canAddDriver && (
+                      <button type="button" onClick={() => setDialog({ type: "add-driver" })} className={button("ghost", "sm")}>
+                        <UserPlus className="size-4" aria-hidden />
+                        เพิ่มคนขับ
+                      </button>
+                    )}
                   </div>
-                  {activeJob ? (
+                  {!canPlan ? null : activeJob ? (
                     <div className="flex items-center gap-2 bg-blue-900 px-3 py-2 text-sm text-white">
                       <span className="min-w-0 flex-1">
                         เลือกคนขับให้ <span className="font-mono font-semibold">{activeJob.container_no}</span>
@@ -457,7 +463,7 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
 
       {/* เลือกคนขับ */}
       <Modal
-        open={!!pickerJob}
+        open={canPlan && !!pickerJob}
         onClose={() => setPickerFor(null)}
         size="md"
         title={pickerJob ? <span>เลือกคนขับ · <span className="font-mono">{pickerJob.container_no}</span></span> : ""}
@@ -502,10 +508,12 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
         title="คนขับ"
         subtitle="ดูสถานะว่าง / แจ้งวันไม่ว่าง"
         footer={
-          <button type="button" className={button("secondary")} onClick={() => setDialog({ type: "add-driver" })}>
-            <UserPlus className="size-4" aria-hidden />
-            เพิ่มคนขับ
-          </button>
+          canAddDriver ? (
+            <button type="button" className={button("secondary")} onClick={() => setDialog({ type: "add-driver" })}>
+              <UserPlus className="size-4" aria-hidden />
+              เพิ่มคนขับ
+            </button>
+          ) : undefined
         }
       >
         <div className="-mx-5 -my-4 flex h-[65dvh] flex-col">
@@ -513,7 +521,7 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
         </div>
       </Modal>
 
-      {dialog?.type === "import" && (
+      {dialog?.type === "import" && canPlan && (
       <ImportDialog
         open
         onClose={() => setDialog(null)}
@@ -555,10 +563,11 @@ function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }
           toast({ message: `ลบ ${job.container_no} แล้ว` });
         }}
         onPickDriver={(id) => setPickerFor(id)}
+        readOnly={!canPlan}
       />
       )}
 
-      {dialog?.type === "add-driver" && (
+      {dialog?.type === "add-driver" && canAddDriver && (
       <AddDriverDialog
         open
         onClose={() => setDialog(null)}

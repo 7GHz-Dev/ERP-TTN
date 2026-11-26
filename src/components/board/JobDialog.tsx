@@ -19,6 +19,8 @@ interface Props {
   onSave: (job: Job, patch: JobPatch) => Promise<void>;
   onDelete: (job: Job) => Promise<void>;
   onPickDriver: (jobId: string) => void;
+  /** ดูได้อย่างเดียว: ทุกช่องปิด เหลือปุ่ม "ปิด" */
+  readOnly: boolean;
 }
 
 type Form = Record<
@@ -57,7 +59,7 @@ function toPatch(j: Job, f: Form): JobPatch {
   return patch as JobPatch;
 }
 
-export function JobDialog({ job, onClose, driver, rates, lookups, onSave, onDelete, onPickDriver }: Props) {
+export function JobDialog({ job, onClose, driver, rates, lookups, onSave, onDelete, onPickDriver, readOnly }: Props) {
   const [f, setF] = useState<Form>(() => toForm(job));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +109,11 @@ export function JobDialog({ job, onClose, driver, rates, lookups, onSave, onDele
       title={<span className="font-mono">{job.container_no}</span>}
       subtitle={job.bl_no ? `BL ${job.bl_no}` : undefined}
       footer={
+        readOnly ? (
+          <button type="button" className={button("secondary")} onClick={onClose}>
+            ปิด
+          </button>
+        ) : (
         <>
           {!job.pickup_date && (
             <button
@@ -153,9 +160,10 @@ export function JobDialog({ job, onClose, driver, rates, lookups, onSave, onDele
             บันทึก
           </button>
         </>
+        )
       }
     >
-      <div className="space-y-6">
+      <fieldset disabled={readOnly} className="min-w-0 space-y-6">
         <section className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
           <UserRound className="size-5 text-slate-500" aria-hidden />
           <div className="min-w-0 flex-1">
@@ -171,9 +179,11 @@ export function JobDialog({ job, onClose, driver, rates, lookups, onSave, onDele
               <p className="text-sm text-slate-500">ยังไม่มีคนขับ</p>
             )}
           </div>
-          <button type="button" onClick={() => onPickDriver(job.id)} className={button("secondary", "sm")}>
-            {job.driver_name ? "เปลี่ยนคนขับ" : "เลือกคนขับ"}
-          </button>
+          {!readOnly && (
+            <button type="button" onClick={() => onPickDriver(job.id)} className={button("secondary", "sm")}>
+              {job.driver_name ? "เปลี่ยนคนขับ" : "เลือกคนขับ"}
+            </button>
+          )}
         </section>
 
         <section>
@@ -269,7 +279,7 @@ export function JobDialog({ job, onClose, driver, rates, lookups, onSave, onDele
             {error}
           </p>
         )}
-      </div>
+      </fieldset>
     </Modal>
   );
 }
