@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { SUPABASE_KEY, SUPABASE_URL, assertSupabaseEnv } from "./env";
 
 export async function supabaseServer() {
-  assertSupabaseEnv();
+  // อ่าน cookies ก่อน: ทำให้หน้าเป็น dynamic เสมอ (ไม่ถูก prerender ตอน build แม้ยังไม่ได้ตั้งค่า env)
   const cookieStore = await cookies();
+  assertSupabaseEnv();
   return createServerClient(SUPABASE_URL, SUPABASE_KEY, {
     cookies: {
       getAll: () => cookieStore.getAll(),

@@ -36,6 +36,8 @@ export function can(role: Role | null, action: Action): boolean {
 /** Supabase Auth ต้องใช้อีเมล — ชื่อผู้ใช้จึงถูกแปลงเป็นอีเมลภายในที่ไม่มีใครส่งเมลถึง */
 export const INTERNAL_EMAIL_DOMAIN = "users.ttn.internal";
 
+export const MIN_PASSWORD = 8;
+
 export const normalizeUsername = (s: string) => s.trim().toLowerCase();
 
 export const isValidUsername = (s: string) => /^[a-z0-9._-]{2,32}$/.test(normalizeUsername(s));

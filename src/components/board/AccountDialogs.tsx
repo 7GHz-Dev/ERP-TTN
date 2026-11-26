@@ -7,8 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { button, input, label } from "@/components/ui/styles";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { DEMO } from "@/lib/demo";
-
-export const MIN_PASSWORD = 8;
+import { MIN_PASSWORD } from "@/lib/auth/roles";
 
 /** เปลี่ยนรหัสผ่านของตัวเอง (ไม่ต้องใช้คีย์ลับ) */
 export function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {

@@ -20,6 +20,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 }
 
 export async function requireAdmin(): Promise<CurrentUser> {
+  // โหมดสาธิตห้ามแตะ admin API (เครื่องที่รันอาจมีคีย์ลับของฐานข้อมูลจริง)
+  if (DEMO) throw new Error("โหมดสาธิตจัดการผู้ใช้ไม่ได้");
   const u = await getCurrentUser();
   if (!u || !u.active || u.role !== "admin") throw new Error("ต้องเป็นผู้ดูแลระบบ");
   return u;
