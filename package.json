@@ -11,7 +11,8 @@
     "import-sheet": "tsx --env-file=.env.local scripts/import-sheet.ts",
     "import-worklog": "tsx --env-file=.env.local scripts/import-worklog.ts",
     "import-drivers": "tsx --env-file=.env.local scripts/import-drivers.ts",
-    "demo": "NEXT_PUBLIC_DEMO=1 next dev"
+    "demo": "NEXT_PUBLIC_DEMO=1 next dev",
+    "check-rls": "tsx --env-file=.env.local scripts/check-rls.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
