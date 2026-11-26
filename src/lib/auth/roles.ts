@@ -70,3 +70,12 @@ export function guardAdminChange(
   }
   return null;
 }
+
+/** ผู้ใช้ที่ล็อกอินอยู่ (อ่านฝั่ง server แล้วส่งให้หน้าจอ) */
+export interface CurrentUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: Role | null;
+  active: boolean;
+}

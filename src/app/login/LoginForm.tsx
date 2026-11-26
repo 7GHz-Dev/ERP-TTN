@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { button, input, label } from "@/components/ui/styles";
+import { loginIdToEmail } from "@/lib/auth/roles";
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -17,10 +18,10 @@ export function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error } = await supabaseBrowser().auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await supabaseBrowser().auth.signInWithPassword({ email: loginIdToEmail(loginId), password });
     setBusy(false);
     if (error) {
-      setError(error.message.includes("Invalid login") ? "อีเมลหรือรหัสผ่านไม่ถูกต้อง" : error.message);
+      setError(error.message.includes("Invalid login") ? "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" : error.message);
       return;
     }
     router.replace("/");
@@ -30,16 +31,18 @@ export function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div>
-        <label htmlFor="email" className={label}>
-          อีเมล
+        <label htmlFor="login-id" className={label}>
+          ชื่อผู้ใช้
         </label>
         <input
-          id="email"
-          type="email"
-          autoComplete="email"
+          id="login-id"
+          type="text"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
           required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={loginId}
+          onChange={(e) => setLoginId(e.target.value)}
           className={input}
         />
       </div>
@@ -66,7 +69,7 @@ export function LoginForm() {
         {busy && <Loader2 className="size-4 animate-spin" aria-hidden />}
         เข้าสู่ระบบ
       </button>
-      <p className="text-center text-xs text-slate-500">ผู้ดูแลระบบเป็นผู้สร้างบัญชีให้ใน Supabase</p>
+      <p className="text-center text-xs text-slate-500">ใช้ชื่อผู้ใช้หรืออีเมล · ลืมรหัสผ่านติดต่อผู้ดูแลระบบ</p>
     </form>
   );
 }
