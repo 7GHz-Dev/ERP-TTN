@@ -36,8 +36,10 @@ import { MessagesDialog } from "./MessagesDialog";
 import { JobDialog } from "./JobDialog";
 import { AddDriverDialog, LeaveDialog } from "./DriverForms";
 import { formatTons } from "./ui";
+import { ChangePasswordDialog } from "./AccountDialogs";
+import type { CurrentUser } from "@/lib/auth/roles";
 
-export function PlanBoard(props: { initialDate: string; userEmail: string }) {
+export function PlanBoard(props: { initialDate: string; user: CurrentUser }) {
   return (
     <ToastProvider>
       <Board {...props} />
@@ -51,11 +53,12 @@ type Dialog =
   | { type: "job"; id: string }
   | { type: "add-driver" }
   | { type: "drivers" }
+  | { type: "password" }
   | null;
 
 const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/\s+/g, "");
 
-function Board({ initialDate, userEmail }: { initialDate: string; userEmail: string }) {
+function Board({ initialDate, user }: { initialDate: string; user: CurrentUser }) {
   const router = useRouter();
   const toast = useToast();
   const today = todayBangkok();
@@ -348,8 +351,9 @@ function Board({ initialDate, userEmail }: { initialDate: string; userEmail: str
         setDate={setDate}
         dayCounts={dayCounts}
         saving={saving > 0}
-        userEmail={userEmail}
+        user={user}
         onImport={() => setDialog({ type: "import" })}
+        onChangePassword={() => setDialog({ type: "password" })}
         onDrivers={() => setDialog({ type: "drivers" })}
         onSignOut={signOut}
       />
@@ -566,6 +570,8 @@ function Board({ initialDate, userEmail }: { initialDate: string; userEmail: str
         }}
       />
       )}
+
+      <ChangePasswordDialog open={dialog?.type === "password"} onClose={() => setDialog(null)} />
 
       {leaveFor && (
       <LeaveDialog

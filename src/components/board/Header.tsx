@@ -1,10 +1,12 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, LogOut, Plus, Users, Check } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, KeyRound, Loader2, LogOut, Plus, ShieldCheck, Users, Check } from "lucide-react";
+import Link from "next/link";
 import { useRef } from "react";
 import clsx from "clsx";
 import { addDays, dayOfMonth, formatThaiDateLong, weekdayShort } from "@/lib/logic/dates";
 import { button } from "@/components/ui/styles";
+import { ROLE_LABEL, can, type CurrentUser } from "@/lib/auth/roles";
 
 interface Props {
   date: string;
@@ -12,13 +14,14 @@ interface Props {
   setDate: (d: string) => void;
   dayCounts: Map<string, { total: number; unassigned: number }>;
   saving: boolean;
-  userEmail: string;
+  user: CurrentUser;
   onImport: () => void;
+  onChangePassword: () => void;
   onDrivers: () => void;
   onSignOut: () => void;
 }
 
-export function Header({ date, today, setDate, dayCounts, saving, userEmail, onImport, onDrivers, onSignOut }: Props) {
+export function Header({ date, today, setDate, dayCounts, saving, user, onImport, onChangePassword, onDrivers, onSignOut }: Props) {
   const dateRef = useRef<HTMLInputElement>(null);
   const days = Array.from({ length: 7 }, (_, i) => addDays(date, i - 3));
 
@@ -60,10 +63,25 @@ export function Header({ date, today, setDate, dayCounts, saving, userEmail, onI
               className="grid size-10 cursor-pointer list-none place-items-center rounded-full bg-slate-100 text-sm font-semibold uppercase text-slate-700 hover:bg-slate-200 [&::-webkit-details-marker]:hidden"
               aria-label="บัญชีผู้ใช้"
             >
-              {userEmail.slice(0, 1) || "?"}
+              {user.displayName.slice(0, 1) || "?"}
             </summary>
             <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white p-2 shadow-lg ring-1 ring-slate-200">
-              <p className="truncate px-2 py-1.5 text-sm text-slate-600">{userEmail}</p>
+              <div className="px-2 py-1.5">
+                <p className="truncate text-sm font-medium">{user.displayName}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {user.username} · {user.role ? ROLE_LABEL[user.role] : "ไม่มีสิทธิ์"}
+                </p>
+              </div>
+              {can(user.role, "users.manage") && (
+                <Link href="/users" className={button("ghost", "md", "w-full justify-start")}>
+                  <ShieldCheck className="size-4" aria-hidden />
+                  จัดการผู้ใช้
+                </Link>
+              )}
+              <button type="button" onClick={onChangePassword} className={button("ghost", "md", "w-full justify-start")}>
+                <KeyRound className="size-4" aria-hidden />
+                เปลี่ยนรหัสผ่าน
+              </button>
               <button type="button" onClick={onSignOut} className={button("ghost", "md", "w-full justify-start")}>
                 <LogOut className="size-4" aria-hidden />
                 ออกจากระบบ

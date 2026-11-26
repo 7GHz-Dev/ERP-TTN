@@ -1,14 +1,15 @@
+import { redirect } from "next/navigation";
 import { PlanBoard } from "@/components/board/PlanBoard";
 import { isISODate, todayBangkok } from "@/lib/logic/dates";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { NoAccess } from "@/components/NoAccess";
 import { DEMO } from "@/lib/demo";
 import { SUPABASE_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const { d } = await searchParams;
   const initialDate = isISODate(d) ? d : todayBangkok();
-  if (DEMO) return <PlanBoard initialDate={initialDate} userEmail="demo@example.com" />;
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
+  if (!DEMO && (!SUPABASE_URL || !SUPABASE_KEY)) {
     return (
       <main className="grid min-h-dvh place-items-center px-6 text-center">
         <div className="max-w-md space-y-2">
@@ -20,8 +21,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       </main>
     );
   }
-  const supabase = await supabaseServer();
-  const { data } = await supabase.auth.getClaims();
-  const email = (data?.claims?.email as string | undefined) ?? "";
-  return <PlanBoard initialDate={initialDate} userEmail={email} />;
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.active || !user.role) return <NoAccess username={user.username} />;
+  return <PlanBoard initialDate={initialDate} user={user} />;
 }
